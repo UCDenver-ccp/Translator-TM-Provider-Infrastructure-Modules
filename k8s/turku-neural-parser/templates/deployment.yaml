@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "turku-neural-parser.fullname" . }}
+  labels:
+    {{- include "turku-neural-parser.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "turku-neural-parser.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "turku-neural-parser.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ include "turku-neural-parser.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:          
+            {{ range .Values.arguments }}
+              - {{ . }}
+            {{ end }}
+          ports:
+            - name: http
+              containerPort: 7689
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -X POST 
+                - -d "This is an example sentence, nothing more, nothing less."
+                - http://localhost:7689
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -X POST 
+                - -d "This is an example sentence, nothing more, nothing less."
+                - http://localhost:7689
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
