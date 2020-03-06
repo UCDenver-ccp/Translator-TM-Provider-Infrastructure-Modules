@@ -124,6 +124,62 @@ resource "google_container_node_pool" "node_pool" {
   }
 }
 
+# ---------------------------------------------------------------------------------------------------------------------
+# CREATE A GPU NODE POOL
+# ---------------------------------------------------------------------------------------------------------------------
+
+resource "google_container_node_pool" "node_pool_gpu1" {
+  provider = google-beta
+
+  name     = "private-gpu-pool-1"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "3"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type        = "COS"
+    machine_type      = "n1-standard-4"
+    
+    guest_accelerator {
+      type  = "nvidia-tesla-k80"
+      count = 1
+    }
+    
+    labels = {
+      private-gpu-pool = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      module.vpc_network.private,
+      "private-gpu-pool-1",
+    ]
+
+    disk_size_gb = "100"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  
 
   lifecycle {
     ignore_changes = [initial_node_count]
@@ -169,4 +225,20 @@ resource "random_string" "suffix" {
   special = false
   upper   = false
 }
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# INSTALL THE NVIDIA DRIVER ON THE GPU NODES
+# Requires the following plugin to be installed locally:
+# https://github.com/banzaicloud/terraform-provider-k8s
+# ---------------------------------------------------------------------------------------------------------------------
+
+data "http" "nvidia-ds-config" {
+  url = "https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded.yaml"
+}
+
+resource "k8s_manifest" "nvidia-driver-daemonset" {
+  content   = data.http.nvidia-ds-config.body
+}
+
 
