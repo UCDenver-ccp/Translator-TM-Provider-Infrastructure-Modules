@@ -226,19 +226,34 @@ resource "random_string" "suffix" {
   upper   = false
 }
 
+# # Automatic installation of the Nvidia GPU drivers is problematic.
+# # This block is currently commented out b/c it results in ambiguous
+# # errors during the Terraform plan stage, e.g. connection refused.
+# # This plugin makes use of the default kubectl config, and therefore
+# # requires the K8s cluster to be up and running, so it is not a good
+# # candidate for installation via Terraform. The GPU drivers should be
+# # installed manually using:
+# #
+# # kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded.yaml
+# #
+# # For details, see: 
+# #     https://cloud.google.com/kubernetes-engine/docs/how-to/gpus#installing_drivers
+# #
+# # ---------------------------------------------------------------------------------------------------------------------
+# # INSTALL THE NVIDIA DRIVER ON THE GPU NODES
+# # Requires the following plugin to be installed locally:
+# # https://github.com/banzaicloud/terraform-provider-k8s
+# # ---------------------------------------------------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------------------------------------------------
-# INSTALL THE NVIDIA DRIVER ON THE GPU NODES
-# Requires the following plugin to be installed locally:
-# https://github.com/banzaicloud/terraform-provider-k8s
-# ---------------------------------------------------------------------------------------------------------------------
+# data "http" "nvidia-ds-config" {
+#   url = "https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded.yaml"
+# }
 
-data "http" "nvidia-ds-config" {
-  url = "https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded.yaml"
-}
-
-resource "k8s_manifest" "nvidia-driver-daemonset" {
-  content   = data.http.nvidia-ds-config.body
-}
+# resource "k8s_manifest" "nvidia-driver-daemonset" {
+#   content   = data.http.nvidia-ds-config.body
+##  depends_on = [
+##    gke_cluster,
+##  ]
+# }
 
 
