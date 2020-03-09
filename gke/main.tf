@@ -1,8 +1,8 @@
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # DEPLOY A GKE PRIVATE CLUSTER IN GOOGLE CLOUD PLATFORM
 # This code borrows heavily from:
 # https://github.com/gruntwork-io/terraform-google-gke/blob/v0.4.0/examples/gke-private-cluster/main.tf
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 terraform {
@@ -20,9 +20,22 @@ terraform {
   }
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Connect to the VPC terraform state so that the already created network
+# configuration can be extracted and used to configure the GKE cluster
+# -----------------------------------------------------------------------------
+data "terraform_remote_state" "vpc" {
+  backend = "gcs"
+  config = {
+    bucket      = var.bucket
+    prefix      = "vpc"
+    credentials = var.credentials
+  }
+}
+
+# -----------------------------------------------------------------------------
 # DEPLOY A PRIVATE CLUSTER IN GOOGLE CLOUD PLATFORM
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 module "gke_cluster" {
   source = "github.com/gruntwork-io/terraform-google-gke.git//modules/gke-cluster?ref=v0.4.0"
@@ -31,12 +44,12 @@ module "gke_cluster" {
 
   project  = var.project
   location = var.location
-  network  = module.vpc_network.network
+  network  = data.terraform_remote_state.vpc.outputs.vpc_network.network
 
   # We're deploying the cluster in the 'public' subnetwork to allow outbound internet access
   # See the network access tier table for full details:
   # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
-  subnetwork = module.vpc_network.public_subnetwork
+  subnetwork = data.terraform_remote_state.vpc.outputs.vpc_network.public_subnetwork
 
   # When creating a private cluster, the 'master_ipv4_cidr_block' has to be defined and the size must be /28
   master_ipv4_cidr_block = var.master_ipv4_cidr_block
@@ -60,12 +73,12 @@ module "gke_cluster" {
     },
   ]
 
-  cluster_secondary_range_name = module.vpc_network.public_subnetwork_secondary_range_name
+  cluster_secondary_range_name = data.terraform_remote_state.vpc.outputs.vpc_network.public_subnetwork_secondary_range_name
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # CREATE A NODE POOL
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 resource "google_container_node_pool" "node_pool" {
   provider = google-beta
@@ -98,7 +111,7 @@ resource "google_container_node_pool" "node_pool" {
     # Add a private tag to the instances. See the network access tier table for full details:
     # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
     tags = [
-      module.vpc_network.private,
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
       "private-pool-example",
     ]
 
@@ -124,9 +137,9 @@ resource "google_container_node_pool" "node_pool" {
   }
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # CREATE A GPU NODE POOL
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 resource "google_container_node_pool" "node_pool_gpu1" {
   provider = google-beta
@@ -164,7 +177,7 @@ resource "google_container_node_pool" "node_pool_gpu1" {
     # Add a private tag to the instances. See the network access tier table for full details:
     # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
     tags = [
-      module.vpc_network.private,
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
       "private-gpu-pool-1",
     ]
 
@@ -192,9 +205,9 @@ resource "google_container_node_pool" "node_pool_gpu1" {
   }
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # CREATE A CUSTOM SERVICE ACCOUNT TO USE WITH THE GKE CLUSTER
-# ---------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 module "gke_service_account" {
   source = "github.com/gruntwork-io/terraform-google-gke.git//modules/gke-service-account?ref=v0.4.0"
@@ -204,31 +217,10 @@ module "gke_service_account" {
   description = var.cluster_service_account_description
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
-# CREATE A NETWORK TO DEPLOY THE CLUSTER TO
-# ---------------------------------------------------------------------------------------------------------------------
-
-module "vpc_network" {
-  source = "github.com/gruntwork-io/terraform-google-network.git//modules/vpc-network?ref=v0.2.9"
-
-  name_prefix = "${var.cluster_name}-network-${random_string.suffix.result}"
-  project     = var.project
-  region      = var.region
-
-  cidr_block           = var.vpc_cidr_block
-  secondary_cidr_block = var.vpc_secondary_cidr_block
-}
-
-# Use a random suffix to prevent overlap in network names
-resource "random_string" "suffix" {
-  length  = 4
-  special = false
-  upper   = false
-}
-
 # # Automatic installation of the Nvidia GPU drivers is problematic.
 # # This block is currently commented out b/c it results in ambiguous
-# # errors during the Terraform plan stage, e.g. connection refused.
+# # errors during the Terraform plan stage, e.g. connection refused or
+# # some error related to unsigned certificates.
 # # This plugin makes use of the default kubectl config, and therefore
 # # requires the K8s cluster to be up and running, so it is not a good
 # # candidate for installation via Terraform. The GPU drivers should be
