@@ -26,6 +26,12 @@ variable "region" {
   type        = string
 }
 
+variable "bucket" {
+  description = "The bucket storing terraform state."
+  type        = string
+}
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # OPTIONAL PARAMETERS
 # These parameters have reasonable defaults.
