@@ -77,7 +77,19 @@ module "gke_cluster" {
 }
 
 # -----------------------------------------------------------------------------
-# CREATE A NODE POOL
+# CREATE A CUSTOM SERVICE ACCOUNT TO USE WITH THE GKE CLUSTER
+# -----------------------------------------------------------------------------
+
+module "gke_service_account" {
+  source = "github.com/gruntwork-io/terraform-google-gke.git//modules/gke-service-account?ref=v0.4.0"
+
+  name        = var.cluster_service_account_name
+  project     = var.project
+  description = var.cluster_service_account_description
+}
+
+# -----------------------------------------------------------------------------
+# CREATE A DEFAULT NODE POOL
 # -----------------------------------------------------------------------------
 
 resource "google_container_node_pool" "node_pool" {
@@ -137,68 +149,6 @@ resource "google_container_node_pool" "node_pool" {
   }
 }
 
-
-# -----------------------------------------------------------------------------
-# CREATE A NODE POOL FOR OGER
-# -----------------------------------------------------------------------------
-
-resource "google_container_node_pool" "node_pool_oger" {
-  provider = google-beta
-
-  name     = "private-oger-pool-1"
-  project  = var.project
-  location = var.location
-  cluster  = module.gke_cluster.name
-
-  initial_node_count = "1"
-
-  autoscaling {
-    min_node_count = "0"
-    max_node_count = "15"
-  }
-
-  management {
-    auto_repair  = "true"
-    auto_upgrade = "true"
-  }
-
-  node_config {
-    image_type   = "COS"
-    machine_type = "n1-standard-2" # 7.5 GB RAM
-
-    labels = {
-      private-oger-pool = "true"
-    }
-
-    # Add a private tag to the instances. See the network access tier table for full details:
-    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
-    tags = [
-      data.terraform_remote_state.vpc.outputs.vpc_network.private,
-      "private-oger-pool-1",
-    ]
-
-    disk_size_gb = "30"
-    disk_type    = "pd-standard"
-    preemptible  = false
-
-    service_account = module.gke_service_account.email
-
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform",
-    ]
-  }
-
-  lifecycle {
-    ignore_changes = [initial_node_count]
-  }
-
-  timeouts {
-    create = "30m"
-    update = "30m"
-    delete = "30m"
-  }
-}
-
 # -----------------------------------------------------------------------------
 # CREATE A GPU NODE POOL
 # -----------------------------------------------------------------------------
@@ -215,7 +165,7 @@ resource "google_container_node_pool" "node_pool_gpu1" {
 
   autoscaling {
     min_node_count = "0"
-    max_node_count = "3"
+    max_node_count = "12"
   }
 
   management {
@@ -267,17 +217,7 @@ resource "google_container_node_pool" "node_pool_gpu1" {
   }
 }
 
-# -----------------------------------------------------------------------------
-# CREATE A CUSTOM SERVICE ACCOUNT TO USE WITH THE GKE CLUSTER
-# -----------------------------------------------------------------------------
 
-module "gke_service_account" {
-  source = "github.com/gruntwork-io/terraform-google-gke.git//modules/gke-service-account?ref=v0.4.0"
-
-  name        = var.cluster_service_account_name
-  project     = var.project
-  description = var.cluster_service_account_description
-}
 
 # # Automatic installation of the Nvidia GPU drivers is problematic.
 # # This block is currently commented out b/c it results in ambiguous
@@ -309,5 +249,617 @@ module "gke_service_account" {
 ##    gke_cluster,
 ##  ]
 # }
+
+
+# ----------------------------------------------------
+# create a node pool for the oger-chebi-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-chebi-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-chebi-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-chebi-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-chebi-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-cl-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-cl-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-cl-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-cl-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-cl-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-go-bp-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-go-bp-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-go-bp-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-go-bp-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-go-bp-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-go-cc-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-go-cc-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-go-cc-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-go-cc-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-go-cc-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-go-mf-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-go-mf-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-go-mf-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-go-mf-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-go-mf-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-mop-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-mop-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-mop-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-mop-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-mop-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-ncbitaxon-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-ncbitaxon-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-ncbitaxon-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-4" # 15 GB RAM
+
+    labels = {
+      private-oger-pool-ncbitaxon-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-ncbitaxon-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-pr-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-pr-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-pr-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-4" # 15 GB RAM
+
+    labels = {
+      private-oger-pool-pr-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-pr-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-so-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-so-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-so-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-so-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-so-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# create a node pool for the oger-uberon-ext service
+# ----------------------------------------------------
+
+resource "google_container_node_pool" "node-pool-oger-uberon-ext" {
+  provider = google-beta
+
+  name     = "private-oger-pool-uberon-ext"
+  project  = var.project
+  location = var.location
+  cluster  = module.gke_cluster.name
+
+  initial_node_count = "3"
+
+  autoscaling {
+    min_node_count = "0"
+    max_node_count = "10"
+  }
+
+  management {
+    auto_repair  = "true"
+    auto_upgrade = "true"
+  }
+
+  node_config {
+    image_type   = "COS"
+    machine_type = "n1-standard-2" # 7.5 GB RAM
+
+    labels = {
+      private-oger-pool-uberon-ext = "true"
+    }
+
+    # Add a private tag to the instances. See the network access tier table for full details:
+    # https://github.com/gruntwork-io/terraform-google-network/tree/master/modules/vpc-network#access-tier
+    tags = [
+      data.terraform_remote_state.vpc.outputs.vpc_network.private,
+      "private-oger-pool-uberon-ext",
+    ]
+
+    disk_size_gb = "30"
+    disk_type    = "pd-standard"
+    preemptible  = false
+
+    service_account = module.gke_service_account.email
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  lifecycle {
+    ignore_changes = [initial_node_count]
+  }
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
 
 
