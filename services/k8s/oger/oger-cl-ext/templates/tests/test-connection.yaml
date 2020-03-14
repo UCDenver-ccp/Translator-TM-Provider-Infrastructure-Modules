@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "oger-cl-ext.fullname" . }}-test-connection"
+  labels:
+    {{- include "oger-cl-ext.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "oger-cl-ext.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never

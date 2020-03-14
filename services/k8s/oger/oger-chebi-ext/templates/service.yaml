@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "oger-chebi-ext.fullname" . }}
+  labels:
+    {{- include "oger-chebi-ext.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  loadBalancerIP: {{ .Values.service.loadBalancerIP }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "oger-chebi-ext.selectorLabels" . | nindent 4 }}
