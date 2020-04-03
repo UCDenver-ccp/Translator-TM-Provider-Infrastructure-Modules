@@ -74,7 +74,7 @@ resources: {}
   #   memory: 128Mi
 
 nodeSelector: {
-  private-oger-pool-pr-ext: "true"
+  private-oger-pool: "true"
 }
 
 tolerations: []
